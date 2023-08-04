@@ -10,7 +10,7 @@
 #pragma newdecls required
 #pragma semicolon 1
 
-#define PLUGIN_VERSION "23w28a"
+#define PLUGIN_VERSION "23w31a"
 
 char g_catThingName[32];
 char g_catChatPrefix[32];

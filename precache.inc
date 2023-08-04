@@ -34,30 +34,30 @@ stock void AutoPrecacheModel(const char[] name, bool preload=false) {
 		
 		_stripExt(filename);
 		StrCat(filename, sizeof(filename), ".phy");
-		AddFileToDownloadsTable(name);
+		AddFileToDownloadsTable(filename);
 		
 		_stripExt(filename);
 		StrCat(filename, sizeof(filename), ".vvd");
 		if (FileExists(filename, true, "mod")) {
-			AddFileToDownloadsTable(name);
+			AddFileToDownloadsTable(filename);
 		}
 		
 		_stripExt(filename);
 		StrCat(filename, sizeof(filename), ".sw.vtx");
 		if (FileExists(filename, true, "mod")) {
-			AddFileToDownloadsTable(name);
+			AddFileToDownloadsTable(filename);
 		}
 		
 		_stripExt(filename,4);
 		StrCat(filename, sizeof(filename), ".dx80.vtx");
 		if (FileExists(filename, true, "mod")) {
-			AddFileToDownloadsTable(name);
+			AddFileToDownloadsTable(filename);
 		}
 		
 		_stripExt(filename,4);
 		StrCat(filename, sizeof(filename), ".dx90.vtx");
 		if (FileExists(filename, true, "mod")) {
-			AddFileToDownloadsTable(name);
+			AddFileToDownloadsTable(filename);
 		}
 	}
 }
