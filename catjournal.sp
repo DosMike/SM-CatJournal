@@ -10,8 +10,9 @@
 #pragma newdecls required
 #pragma semicolon 1
 
-#define PLUGIN_VERSION "23w31a"
+#define PLUGIN_VERSION "23w40a"
 
+bool g_enableGlow;
 char g_catThingName[32];
 char g_catChatPrefix[32];
 char g_catCommandName[3][32];
@@ -172,10 +173,13 @@ public void OnPluginStart() {
 	if (!config.ImportFromFile("cfg/sourcemod/catconfig.cfg")) {
 		SetFailState("Could not find cat config!");
 	}
+	char tmp[32];
 	
 	config.GetString("database", dbname, sizeof(dbname), "");
 	config.GetString("thing_name", g_catThingName, sizeof(g_catThingName), "Cat");
 	config.GetString("chat_prefix", g_catChatPrefix, sizeof(g_catChatPrefix), "[CatJournal] ");
+	config.GetString("enable_glow", tmp, sizeof(tmp), "yes");
+	g_enableGlow = (StrEqual("yes", tmp, false) || StrEqual("true", tmp, false) || StrEqual("on", tmp, false) || StrEqual("1", tmp));
 	config.GetString("command_journal", g_catCommandName[CCMD_STATS], sizeof(g_catCommandName[]), "sm_catjournal");
 	config.GetString("command_rankup", g_catCommandName[CCMD_RANKUP], sizeof(g_catCommandName[]), "sm_catup");
 	config.GetString("command_spawnbonus", g_catCommandName[CCMD_BONUS], sizeof(g_catCommandName[]), "sm_bonuscats");
@@ -185,8 +189,6 @@ public void OnPluginStart() {
 		SetFailState("Empty thing names are not valid");
 	if (g_catCommandName[CCMD_STATS][0] == 0 || g_catCommandName[CCMD_RANKUP][0] == 0 || g_catCommandName[CCMD_BONUS][0] == 0)
 		SetFailState("Empty command names are not premitted");
-	
-	char tmp[32];
 	
 	if (config.JumpToKey("assets")) {
 		if (config.GotoFirstSubKey(false)) {
@@ -651,13 +653,15 @@ void SpawnCats(int owner, float pos[3], int cats, KibbyFlags flags) {
 		ScaleVector(vec, GetRandomFloat(200.0, 400.0));
 		TeleportEntity(cat, pos, direction, vec);
 		
-		float zero[3];
-		if ((flags & kfBonus)==kfBonus) {
-			TE_StartParticle(BONUS_GLOW, pos, zero, zero, cat, PATTACH_ROOTBONE_FOLLOW);
-		} else {
-			TE_StartParticle(NORMAL_GLOW, pos, zero, zero, cat, PATTACH_ROOTBONE_FOLLOW);
+		if (g_enableGlow) {
+			float zero[3];
+			if ((flags & kfBonus)==kfBonus) {
+				TE_StartParticle(BONUS_GLOW, pos, zero, zero, cat, PATTACH_ROOTBONE_FOLLOW);
+			} else {
+				TE_StartParticle(NORMAL_GLOW, pos, zero, zero, cat, PATTACH_ROOTBONE_FOLLOW);
+			}
+			TE_SendToAllInRange(pos, RangeType_Visibility);
 		}
-		TE_SendToAllInRange(pos, RangeType_Visibility);
 		
 		KibbyData kibby;
 		kibby.From(cat, owner, flags);
@@ -915,8 +919,10 @@ int GetClientsInMewoableRange(const float origin[3], ClientRangeType rangeType, 
  * entity being delayed by 1 tick. This wont work OnPluginEnd or on map change.
  */
 void KillEntityAndParticleEffects(int entity) {
-	SetVariantString("ParticleEffectStop");
-	AcceptEntityInput(entity, "DispatchEffect");
+	if (g_enableGlow) {
+		SetVariantString("ParticleEffectStop");
+		AcceptEntityInput(entity, "DispatchEffect");
+	}
 	RequestFrame(_KillEntityAndParticleEffects_DelayedKill, EntIndexToEntRef(entity));
 }
 /// Internal callback for KillEntityAndParticleEffects
