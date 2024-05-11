@@ -10,7 +10,7 @@
 #pragma newdecls required
 #pragma semicolon 1
 
-#define PLUGIN_VERSION "23w40a"
+#define PLUGIN_VERSION "24w19a"
 
 bool g_enableGlow;
 char g_catThingName[32];
@@ -51,11 +51,11 @@ int g_rankupXP;
 int g_journalXP[6];
 
 char g_powerColors[5][8]={
-	"\x075E98D9",
-	"\x074B69FF",
-	"\x078847FF",
-	"\x07D32CE6",
-	"\x07EB4B4B",
+	"\x07;5E98D9",
+	"\x07;4B69FF",
+	"\x07;8847FF",
+	"\x07;D32CE6",
+	"\x07;EB4B4B",
 };
 
 Cookie g_cookieMuted;
@@ -86,7 +86,7 @@ enum struct CatData {
 		int levelPost = this.level();
 		if (levelPre != levelPost) {
 			CNextColorSource(self);
-			CPrintToChatAll("\x03%N\x01's %s Journal has reached a new rank: \x07FFD700%s\x01", self, g_catThingName, g_catLevels[levelPost]);
+			CPrintToChatAll("\x03;%N\x01;'s %s Journal has reached a new rank: \x07;FFD700%s\x01;", self, g_catThingName, g_catLevels[levelPost]);
 			EmitSoundToAll(g_catLevelUpPath);
 		}
 	}
@@ -118,6 +118,7 @@ enum KibbyFlags {
 	kfObjective = 1,
 	kfBonus = 2,
 	kfInactive = 4,
+	kfAnimate = 8, // we touched ground, play a pickup animation
 };
 enum struct KibbyData {
 	int entRef;
@@ -125,13 +126,14 @@ enum struct KibbyData {
 	int team;
 	KibbyFlags flags;
 	float created;
+	float animPos[3]; //base position for animation
 	
 	// ret 0 unchanged : 1 changed : -1 stale
 	int RemoveThink() {
 		float age = GetGameTime()-this.created;
 		int ent = EntRefToEntIndex(this.entRef);
 		if (ent == INVALID_ENT_REFERENCE) return -1;
-		
+
 		if (age >= DROP_DESPAWN_TIME && !hasMoveParent(ent)) {
 			KillEntityAndParticleEffects(ent);
 			return -1;
@@ -330,24 +332,24 @@ void PrintJournal(int print, int client) {
 	
 	//header
 	if (print == client) {
-		CPrintToChat(client, "%sYour \x07FFD700%s\x01 has \x05%i\x01 XP, "...
-		                     "with %s%s Power %i\x01 and your %s Streak is \x05%i\x01.",
+		CPrintToChat(client, "%sYour \x07;FFD700%s\x01; has \x05;%i\x01; XP, "...
+		                     "with %s%s Power %i\x01; and your %s Streak is \x05;%i\x01;.",
 					g_catChatPrefix, journalName, clientCat[print].xp, 
 					g_powerColors[clientCat[print].power], g_catThingName, clientCat[print].power+1, g_catThingName, clientCat[print].streak);
 	} else {
-		CPrintToChat(client, "%s\x03%N\x01's \x07FFD700%s\x01 has \x05%i\x01 XP, "...
-		                     "with %s%s Power %i\x01. Their %s Streak is \x05%i\x01.",
+		CPrintToChat(client, "%s\x03;%N\x01;'s \x07;FFD700%s\x01; has \x05;%i\x01; XP, "...
+		                     "with %s%s Power %i\x01;. Their %s Streak is \x05;%i\x01;.",
 					g_catChatPrefix, print, journalName, clientCat[print].xp, 
 					g_powerColors[clientCat[print].power], g_catThingName, clientCat[print].power+1, g_catThingName, clientCat[print].streak);
 	}
 	//journal
-	CPrintToChat(client, "  :: Captured \x05%i\x01 :: Created \x05%i\x01 :: Objective \x05%i\x01", 
+	CPrintToChat(client, "  :: Captured \x05;%i\x01; :: Created \x05;%i\x01; :: Objective \x05;%i\x01;",
 				clientCat[print].journal[cjCaptured], clientCat[print].journal[cjCreated], clientCat[print].journal[cjObjective]);
-	CPrintToChat(client, "  :: Bonus \x05%i\x01 :: Recovered \x05%i\x01 :: Team Captured \x05%i\x01", 
+	CPrintToChat(client, "  :: Bonus \x05;%i\x01; :: Recovered \x05;%i\x01; :: Team Captured \x05;%i\x01;",
 				clientCat[print].journal[cjBonus], clientCat[print].journal[cjRecovered], clientCat[print].journal[cjTeamCaptured]);
 	//rnak up hint
 	if (print == client && clientCat[print].level() == 20)
-		CPrintToChat(client, "  :: Your journal is max level - Use \x04/%s\x01 to increase it's power", g_catCommandName[CCMD_RANKUP]);
+		CPrintToChat(client, "  :: Your journal is max level - Use \x04;/%s\x01; to increase it's power", g_catCommandName[CCMD_RANKUP]);
 }
 
 public Action CmdCatUp(int client, int args) {
@@ -380,7 +382,7 @@ public int HandleCatUpMenu(Menu menu, MenuAction action, int param1, int param2)
 		EmitSoundToAll(g_catPowerUpPath[clientCat[param1].power]);
 		clientCat[param1].power += 1;
 		CNextColorSource(param1);
-		CPrintToChatAll("\x03%N\x01's \x07FFD700%s Journal\x01 was upgraded to %s%s Power %i\x01",
+		CPrintToChatAll("\x03;%N\x01;'s \x07;FFD700%s Journal\x01; was upgraded to %s%s Power %i\x01;",
 				param1, g_catThingName, g_powerColors[clientCat[param1].power], g_catThingName, clientCat[param1].power+1);
 		
 	} else if (action == MenuAction_End) {
@@ -693,6 +695,17 @@ int ClosestPlayer(int entity, float maxDist, int touchFilter=0) {
 	return clPlay;
 }
 
+bool isKibbyOnGround(int cat) {
+	// GetEntityFlags stays 0?
+	// bool ground = (GetEntityFlags(catIndex) & (FL_ONGROUND | FL_INWATER))!=0;
+	float vel[3];
+	GetEntPropVector(cat, Prop_Data, "m_vecBaseVelocity", vel);
+	float absVelo = GetVectorLength(vel, true);
+	GetEntPropVector(cat, Prop_Data, "m_vecAngVelocity", vel);
+	float angVelo = GetVectorLength(vel, true);
+	return absVelo < 1.0 && angVelo < 1.0;
+}
+
 public Action KibbyThinkTick(Handle timer) {
 	for (int i = g_kibbyData.Length-1; i>=0; i--) {
 		KibbyData data;
@@ -709,7 +722,25 @@ public Action KibbyThinkTick(Handle timer) {
 		int catIndex = EntRefToEntIndex(data.entRef);
 		//crashfix, killing a parented entity seems to cause crashes
 		if (hasMoveParent(catIndex)) continue;
-		
+
+		//pickup anim
+		float age = GetGameTime()-data.created;
+		if ((data.flags & kfAnimate)==kfAnimate) {
+			float pos[3];
+			float ang[3];
+			ang[1] = (age*60.0)%360.0-180.0;
+			ang[0] = Sine(age)*15.0;
+			pos = data.animPos;
+			pos[2] += Sine(age)*4.0;
+			AnimateEntity(catIndex, pos, ang);
+		} else if (isKibbyOnGround(catIndex)) {
+			GetEntPropVector(catIndex, Prop_Send, "m_vecOrigin", data.animPos);
+			data.animPos[2] += 6.0;
+			SetEntityMoveType(catIndex, MOVETYPE_FLY);
+			data.flags |= kfAnimate;
+			g_kibbyData.SetArray(i, data);
+		}
+
 		int touchFilter = ((data.flags & kfBonus)==kfBonus && data.owner != 0) ? GetClientOfUserId(data.owner) : 0;
 		int touching = ClosestPlayer(catIndex, DROP_PICKUP_RANGE, touchFilter);
 		if (touching) { OnClientTouchCat(touching, data); }
@@ -933,4 +964,13 @@ static void _KillEntityAndParticleEffects_DelayedKill(int entref) {
 
 static void GetRandomString(ArrayList list, char[] buffer, int size) {
 	list.GetString(GetURandomInt() % list.Length, buffer, size);
+}
+
+///
+
+void AnimateEntity(int entity, float pos[3], float angles[3]) {
+	int interpolFrame = GetEntProp(entity, Prop_Send, "m_ubInterpolationFrame");
+	TeleportEntity(entity, pos, angles, _);
+	SetEntProp(entity, Prop_Send, "m_flSimulationTime", view_as<int>(GetGameTime()));
+	SetEntProp(entity, Prop_Send, "m_ubInterpolationFrame", interpolFrame);
 }
