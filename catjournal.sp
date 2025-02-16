@@ -10,7 +10,7 @@
 #pragma newdecls required
 #pragma semicolon 1
 
-#define PLUGIN_VERSION "24w19a"
+#define PLUGIN_VERSION "25w07a"
 
 bool g_enableGlow;
 char g_catThingName[32];
@@ -73,7 +73,7 @@ enum struct CatData {
 	bool deathHandled;
 	bool muted;
 	bool meowdic;
-	
+
 	int level() {
 		int lvl = this.xp/g_rankupXP - this.power*20;
 		if (lvl < 0) lvl=0; else if (lvl > 20) lvl=20;
@@ -127,7 +127,7 @@ enum struct KibbyData {
 	KibbyFlags flags;
 	float created;
 	float animPos[3]; //base position for animation
-	
+
 	// ret 0 unchanged : 1 changed : -1 stale
 	int RemoveThink() {
 		float age = GetGameTime()-this.created;
@@ -176,7 +176,7 @@ public void OnPluginStart() {
 		SetFailState("Could not find cat config!");
 	}
 	char tmp[32];
-	
+
 	config.GetString("database", dbname, sizeof(dbname), "");
 	config.GetString("thing_name", g_catThingName, sizeof(g_catThingName), "Cat");
 	config.GetString("chat_prefix", g_catChatPrefix, sizeof(g_catChatPrefix), "[CatJournal] ");
@@ -191,7 +191,7 @@ public void OnPluginStart() {
 		SetFailState("Empty thing names are not valid");
 	if (g_catCommandName[CCMD_STATS][0] == 0 || g_catCommandName[CCMD_RANKUP][0] == 0 || g_catCommandName[CCMD_BONUS][0] == 0)
 		SetFailState("Empty command names are not premitted");
-	
+
 	if (config.JumpToKey("assets")) {
 		if (config.GotoFirstSubKey(false)) {
 			do {
@@ -220,7 +220,7 @@ public void OnPluginStart() {
 		}
 		config.GoBack();
 	} else SetFailState("Config is missing assets section");
-	
+
 	if (g_catAssetPaths.Length == 0)
 		PrintToServer("[CatJournal Loader] WARNING: Config has no download entries");
 	if (g_catModelPaths.Length == 0)
@@ -232,7 +232,7 @@ public void OnPluginStart() {
 	for (int i=0; i<4; i++)
 		if (g_catPowerUpPath[i][0]==0)
 			SetFailState("Config is missing sound_powerup%i sound", i+1);
-	
+
 	if (config.JumpToKey("ranks")) {
 		g_catLevels[0]="Meow";//dummy
 		for (int i=1;i<=20;i++) {
@@ -242,7 +242,7 @@ public void OnPluginStart() {
 		}
 		config.GoBack();
 	} else SetFailState("Config is missing ranks section");
-	
+
 	if (config.JumpToKey("xp")) {
 		g_rankupXP = config.GetNum("rankup", 5000);
 		g_journalXP[cjCaptured] = config.GetNum("capture", 3);
@@ -252,13 +252,13 @@ public void OnPluginStart() {
 		g_journalXP[cjRecovered] = config.GetNum("recover", 1);
 		g_journalXP[cjTeamCaptured] = config.GetNum("teamcapture", 3);
 	} else SetFailState("Config is missing xp section");
-	
+
 	delete config;
-	
+
 	Database.Connect(OnDBConnected, dbname);
-	
+
 	LoadTranslations("common.phrases.txt");
-	
+
 	char buffer[128];
 	FormatEx(buffer, sizeof(buffer), "Usage: %s [player] - print %s Journal info", g_catCommandName[CCMD_STATS], g_catThingName);
 	RegConsoleCmd(g_catCommandName[CCMD_STATS], CmdCatJournal, buffer);
@@ -266,7 +266,7 @@ public void OnPluginStart() {
 	RegConsoleCmd(g_catCommandName[CCMD_RANKUP], CmdCatUp, buffer);
 	FormatEx(buffer, sizeof(buffer), "Usage: %s <amount> - spawn Bonus %s", g_catCommandName[CCMD_BONUS], g_catThingName);
 	RegAdminCmd(g_catCommandName[CCMD_BONUS], CmdCatBonus, ADMFLAG_GENERIC, buffer);
-	
+
 	HookEvent("player_death", OnClientDeath);
 	//pl koth cp
 	HookEvent("teamplay_point_captured", OnObjectivePointCapped);
@@ -274,9 +274,9 @@ public void OnPluginStart() {
 	HookEvent("teamplay_flag_event", OnObjectiveFlagCapture);
 	//pass
 	HookEvent("pass_score", OnObjectivePasstimeScore);
-	
+
 	AddNormalSoundHook(OnNormalSHook);
-	
+
 	g_cookieMuted = new Cookie("catjournal_mute", "Wether the spawn and pickup sounds are muted", CookieAccess_Private);
 	g_cookieMeowdic = new Cookie("catjournal_meowdic", "Replace MEDIC! with a Meow!", CookieAccess_Private);
 	FormatEx(buffer, sizeof(buffer), "%s Journal", g_catThingName);
@@ -318,28 +318,28 @@ void PrintJournal(int print, int client) {
 	if ((client = GetClientOfUserId(client))==0) return; //"admin" is gone
 	SetCmdReplySource(client?SM_REPLY_TO_CHAT:SM_REPLY_TO_CONSOLE);
 	if (print<=0) { ReplyToTargetError(client, print); return; }
-	
+
 	if (!IsClientAuthorized(print) || clientCat[print].loadState!=2) {
 		if (clientCat[client].loadState == 0) LoadCats(client);
 		ReplyToCommand(client, "%sJournal is not yet loaded", g_catChatPrefix);
 		return;
 	}
-	
+
 	int level = clientCat[print].level();
 	char journalName[64];
 	if (level==0) FormatEx(journalName, sizeof(journalName), "%s Journal", g_catThingName);
 	else FormatEx(journalName, sizeof(journalName), "Level %i %s %s Journal", level, g_catLevels[level], g_catThingName);
-	
+
 	//header
 	if (print == client) {
 		CPrintToChat(client, "%sYour \x07;FFD700%s\x01; has \x05;%i\x01; XP, "...
 		                     "with %s%s Power %i\x01; and your %s Streak is \x05;%i\x01;.",
-					g_catChatPrefix, journalName, clientCat[print].xp, 
+					g_catChatPrefix, journalName, clientCat[print].xp,
 					g_powerColors[clientCat[print].power], g_catThingName, clientCat[print].power+1, g_catThingName, clientCat[print].streak);
 	} else {
 		CPrintToChat(client, "%s\x03;%N\x01;'s \x07;FFD700%s\x01; has \x05;%i\x01; XP, "...
 		                     "with %s%s Power %i\x01;. Their %s Streak is \x05;%i\x01;.",
-					g_catChatPrefix, print, journalName, clientCat[print].xp, 
+					g_catChatPrefix, print, journalName, clientCat[print].xp,
 					g_powerColors[clientCat[print].power], g_catThingName, clientCat[print].power+1, g_catThingName, clientCat[print].streak);
 	}
 	//journal
@@ -372,19 +372,19 @@ public Action CmdCatUp(int client, int args) {
 		menu.AddItem("ok", "Confirm");
 		menu.Display(client, 30);
 	}
-	
+
 	return Plugin_Handled;
 }
 public int HandleCatUpMenu(Menu menu, MenuAction action, int param1, int param2) {
 	if (action == MenuAction_Select) {
 		if (clientCat[param1].level() != 20 || clientCat[param1].power >= 4) return 0;
-		
+
 		EmitSoundToAll(g_catPowerUpPath[clientCat[param1].power]);
 		clientCat[param1].power += 1;
 		CNextColorSource(param1);
 		CPrintToChatAll("\x03;%N\x01;'s \x07;FFD700%s Journal\x01; was upgraded to %s%s Power %i\x01;",
 				param1, g_catThingName, g_powerColors[clientCat[param1].power], g_catThingName, clientCat[param1].power+1);
-		
+
 	} else if (action == MenuAction_End) {
 		delete menu;
 	}
@@ -433,16 +433,16 @@ public void OnMapStart() {
 	for (int cat;cat<4;cat+=1) {
 		AutoPrecacheSound(g_catPowerUpPath[cat]);
 	}
-	
+
 	PrecacheParticleSystem(NORMAL_GLOW);
 	PrecacheParticleSystem(BONUS_GLOW);
-	
-	if (g_kibbyData == INVALID_HANDLE) 
+
+	if (g_kibbyData == INVALID_HANDLE)
 		g_kibbyData = new ArrayList(sizeof(KibbyData));
 	else
 		g_kibbyData.Clear();
 	CreateTimer(0.2, KibbyThinkTick, _, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
-	
+
 	for (int client=1; client<=MaxClients; client+=1) {
 		if (IsClientInGame(client)) {
 			LoadCats(client);
@@ -489,7 +489,7 @@ public void OnCookieMenu(int client, CookieMenuAction action, any info, char[] b
 
 void ShowCatJournalSettingsMenu(int client) {
 	Menu menu = new Menu(HandleCatJournalSettingsMenu);
-	
+
 	menu.SetTitle("%s Jounral", g_catThingName);
 	if (clientCat[client].muted)
 		menu.AddItem("unmute", "Sounds for Pickups [Off]");
@@ -499,7 +499,7 @@ void ShowCatJournalSettingsMenu(int client) {
 		menu.AddItem("medic", "MEDIC! Replacer [On]");
 	else
 		menu.AddItem("meowdic", "MEDIC! Replacer [Off]");
-	
+
 	menu.ExitBackButton = true;
 	menu.Display(client, MENU_TIME_FOREVER);
 }
@@ -540,7 +540,7 @@ public Action OnNormalSHook(int clients[MAXPLAYERS], int &numClients, char sampl
 	if (StrContains(sample, "vo/") != 0) return Plugin_Continue;
 	if (StrContains(sample, "Medic") < 6) return Plugin_Continue;
 	if (StrContains(sample[3], "/") != -1) return Plugin_Continue;
-	
+
 	GetRandomString(g_catMeowPaths, sample, PLATFORM_MAX_PATH);
 	return Plugin_Changed;
 }
@@ -561,7 +561,7 @@ void OnTakeDamagePost(int victim, int attacker, int inflictor, float damage, int
 	if (!(1<=victim<=MaxClients)) return; //??
 	if (clientCat[victim].loadState != 2) return;
 	if (GetClientHealth(victim)>0) return;
-	
+
 	handleClientDeath(victim, attacker);
 }
 
@@ -580,7 +580,7 @@ Action OnClientDeath(Event event, const char[] name, bool dontBroadcast) {
 void handleClientDeath(int victim, int attacker) {
 	if (clientCat[victim].deathHandled) return;
 	clientCat[victim].deathHandled = true;
-	
+
 	if (attacker != victim && (1<=attacker<=MaxClients) &&
 		GetClientTeam(victim) != GetClientTeam(attacker))
 	{
@@ -598,7 +598,7 @@ void handleClientDeath(int victim, int attacker) {
 		GetClientEyePosition(victim, pos);
 		SpawnCats(victim, pos, catpower, kfNONE);
 	}
-	
+
 	endCatStreak(victim, attacker);
 }
 
@@ -608,7 +608,7 @@ void endCatStreak(int victim, int attacker) {
 		char message[128];
 		if (victim == attacker || !(1<=attacker<=MaxClients))
 			FormatEx(message, sizeof(message), "%N has ended their %s Streak %i", victim, g_catThingName, clientCat[victim].streak);
-		else 
+		else
 			FormatEx(message, sizeof(message), "%N has ended %N's %s Streak %i", attacker, victim, g_catThingName, clientCat[victim].streak);
 		ShowHudTextToAll(message);
 	}
@@ -627,34 +627,35 @@ void SpawnCats(int owner, float pos[3], int cats, KibbyFlags flags) {
 	char filename[PLATFORM_MAX_PATH];
 	GetRandomString(g_catMeowPaths, filename, sizeof(filename));
 	EmitSound(listeners, listCount, filename, SOUND_FROM_WORLD, .origin=pos);
-	
+
 	int freeEdicts = 1950-GetEntityCount();
 	int headroom = 640-g_kibbyData.Length;
 	if (freeEdicts < headroom) headroom = freeEdicts;
 	if (headroom < cats) cats = headroom;
 	if (cats <= 0) return;
-	
+
 	//leave about 100 edicts of headroom
 	for (;cats-->0 && GetEntityCount()<1950;) {
-		
+
 		int cat = CreateEntityByName("prop_physics_override");
 		if (cat == INVALID_ENT_REFERENCE) return;
-		
+
 		GetRandomString(g_catModelPaths, filename, sizeof(filename));
 		DispatchKeyValue(cat, "model", filename);
 		DispatchKeyValueFloat(cat, "modelscale", (flags & kfBonus)?0.9:0.75);
 		DispatchKeyValueVector(cat, "origin", pos);
-		DispatchKeyValueInt(cat, "CollisionGroup", 2); //pass-through initially
 		if (!DispatchSpawn(cat)) return;
 		ActivateEntity(cat);
-		
+		SetEntityCollisionGroup(cat, 1); //COLLISION_GROUP_DEBRIS
+		EntityCollisionRulesChanged(cat);
+
 		direction[0] = GetRandomFloat(-45.0,-15.0);
 		direction[1] = GetRandomFloat(0.0,360.0);
 		float vec[3];
 		GetAngleVectors(direction, vec, NULL_VECTOR, NULL_VECTOR);
 		ScaleVector(vec, GetRandomFloat(200.0, 400.0));
 		TeleportEntity(cat, pos, direction, vec);
-		
+
 		if (g_enableGlow) {
 			float zero[3];
 			if ((flags & kfBonus)==kfBonus) {
@@ -664,7 +665,7 @@ void SpawnCats(int owner, float pos[3], int cats, KibbyFlags flags) {
 			}
 			TE_SendToAllInRange(pos, RangeType_Visibility);
 		}
-		
+
 		KibbyData kibby;
 		kibby.From(cat, owner, flags);
 		g_kibbyData.PushArray(kibby);
@@ -677,12 +678,12 @@ int ClosestPlayer(int entity, float maxDist, int touchFilter=0) {
 	float clDist=maxDist*2;
 	float to[3];
 	GetEntPropVector(entity, Prop_Send, "m_vecOrigin", to);
-	
+
 	for (int client=1; client<=MaxClients; client++) {
 		if (!IsClientInGame(client) || GetClientTeam(client)<1 || !IsPlayerAlive(client) || client == touchFilter) continue;
 		float pos[3];
 		float dist;
-		
+
 		GetClientAbsOrigin(client, pos);
 		if ((dist=GetVectorDistance(pos,to,true))<maxDist && dist<clDist) {
 			clDist = dist; clPlay = client;
@@ -695,6 +696,10 @@ int ClosestPlayer(int entity, float maxDist, int touchFilter=0) {
 	return clPlay;
 }
 
+bool TRF_Any(int entity, int contentsMask, int data) {
+	return entity != data;
+}
+
 bool isKibbyOnGround(int cat) {
 	// GetEntityFlags stays 0?
 	// bool ground = (GetEntityFlags(catIndex) & (FL_ONGROUND | FL_INWATER))!=0;
@@ -703,7 +708,21 @@ bool isKibbyOnGround(int cat) {
 	float absVelo = GetVectorLength(vel, true);
 	GetEntPropVector(cat, Prop_Data, "m_vecAngVelocity", vel);
 	float angVelo = GetVectorLength(vel, true);
-	return absVelo < 1.0 && angVelo < 1.0;
+
+	if (absVelo > 1.0 || angVelo > 1.0)
+		return false;
+
+	// Scan down to test ground, ground flag is jank
+	float pos[3], vec[3], mins[3], maxs[3];
+	GetEntPropVector(cat, Prop_Send, "m_vecOrigin", pos);
+	GetEntPropVector(cat, Prop_Send, "m_vecMins", mins);
+	GetEntPropVector(cat, Prop_Send, "m_vecMaxs", maxs);
+	float height = maxs[2] - mins[2];
+	vec[0] = vec[1] = 0.0;
+	vec[2] = -height;
+	AddVectors(pos, vec, vec);
+	TR_TraceHullFilter(pos, vec, mins, maxs, MASK_PLAYERSOLID, TRF_Any, cat);
+	return TR_DidHit();
 }
 
 public Action KibbyThinkTick(Handle timer) {
@@ -736,7 +755,10 @@ public Action KibbyThinkTick(Handle timer) {
 		} else if (isKibbyOnGround(catIndex)) {
 			GetEntPropVector(catIndex, Prop_Send, "m_vecOrigin", data.animPos);
 			data.animPos[2] += 6.0;
-			SetEntityMoveType(catIndex, MOVETYPE_FLY);
+			SetEntityMoveType(catIndex, MOVETYPE_NOCLIP);
+			SetEntityCollisionGroup(catIndex, 11); //COLLISION_GROUP_WEAPON
+			EntityCollisionRulesChanged(catIndex);
+			AcceptEntityInput(catIndex, "DisableMotion");
 			data.flags |= kfAnimate;
 			g_kibbyData.SetArray(i, data);
 		}
@@ -751,7 +773,7 @@ public Action KibbyThinkTick(Handle timer) {
 void OnClientTouchCat(int client, KibbyData data) {
 	int cat = EntRefToEntIndex(data.entRef);
 	if (cat == INVALID_ENT_REFERENCE) return;
-	
+
 	float pos[3];
 	GetClientEyePosition(client, pos);
 	int listeners[MAXPLAYERS];
@@ -760,9 +782,9 @@ void OnClientTouchCat(int client, KibbyData data) {
 	GetRandomString(g_catMeowPaths, filename, sizeof(filename));
 	EmitSound(listeners, listCount, filename, SOUND_FROM_WORLD, .origin=pos);
 	KillEntityAndParticleEffects(cat);
-	
+
 	if (clientCat[client].loadState != 2) return;
-	
+
 	int pickupTeam = GetClientTeam(client);
 	if (data.team < 1 || (data.flags & kfBonus)==kfBonus) {
 		clientCat[client].collect(1, cjBonus, client);
@@ -772,7 +794,7 @@ void OnClientTouchCat(int client, KibbyData data) {
 		clientCat[client].collect(1, cjObjective, client);
 	} else {
 		clientCat[client].collect(1, cjRecovered, client);
-		
+
 		if (data.owner) {
 			int owner = GetClientOfUserId(data.owner);
 			if (1<=owner<=MaxClients && clientCat[owner].loadState == 2) {
@@ -814,7 +836,7 @@ public void OnObjectivePasstimeScore(Event event, const char[] name, bool dontBr
 	int points = event.GetInt("points");
 	int team = GetClientTeam(client);
 	float pos[3];
-	
+
 	GetClientEyePosition(client, pos);
 	SpawnCats(team, pos, clientCat[client].power+points, kfObjective);
 	GetClientEyePosition(assister, pos);
@@ -837,7 +859,7 @@ public void OnDBConnected(Database db, const char[] error, any data) {
 	} else {
 		SetFailState("Unsupported Database Driver %s", tmp);
 	}
-	
+
 	if (g_isMySQL) {
 		db.Query(OnDBConnectedPost, "CREATE TABLE IF NOT EXISTS catjournal ("
 				..."  steamid VARCHAR(32) UNIQUE,"
@@ -901,12 +923,12 @@ public void SaveCats(int client) {
 	GetClientName(client, nick, sizeof(nick));
 	char query[256];
 	if (g_isMySQL) {
-		g_catbase.Format(query, sizeof(query), "REPLACE INTO catjournal (steamid, nickname, catxp, captured, created, objective, bonus, recovered, teamcaptured, catpower, catstreak) VALUES ('%s', '%s', %i, %i, %i, %i, %i, %i, %i, %i, %i)", 
+		g_catbase.Format(query, sizeof(query), "REPLACE INTO catjournal (steamid, nickname, catxp, captured, created, objective, bonus, recovered, teamcaptured, catpower, catstreak) VALUES ('%s', '%s', %i, %i, %i, %i, %i, %i, %i, %i, %i)",
 			steamid, nick, clientCat[client].xp, clientCat[client].journal[cjCaptured], clientCat[client].journal[cjCreated],
 			clientCat[client].journal[cjObjective], clientCat[client].journal[cjBonus], clientCat[client].journal[cjRecovered],
 			clientCat[client].journal[cjTeamCaptured], clientCat[client].power, clientCat[client].streak);
 	} else {
-		g_catbase.Format(query, sizeof(query), "INSERT OR REPLACE INTO catjournal (steamid, nickname, catxp, captured, created, objective, bonus, recovered, teamcaptured, catpower, catstreak) VALUES ('%s', '%s', %i, %i, %i, %i, %i, %i, %i, %i, %i)", 
+		g_catbase.Format(query, sizeof(query), "INSERT OR REPLACE INTO catjournal (steamid, nickname, catxp, captured, created, objective, bonus, recovered, teamcaptured, catpower, catstreak) VALUES ('%s', '%s', %i, %i, %i, %i, %i, %i, %i, %i, %i)",
 			steamid, nick, clientCat[client].xp, clientCat[client].journal[cjCaptured], clientCat[client].journal[cjCreated],
 			clientCat[client].journal[cjObjective], clientCat[client].journal[cjBonus], clientCat[client].journal[cjRecovered],
 			clientCat[client].journal[cjTeamCaptured], clientCat[client].power, clientCat[client].streak);
@@ -946,7 +968,7 @@ int GetClientsInMewoableRange(const float origin[3], ClientRangeType rangeType, 
 }
 
 /** This makes sure to tell clients to end the particle effects before removing
- * the entity, by DispatchEffect ParticleEffectStop, and actual deletion of the 
+ * the entity, by DispatchEffect ParticleEffectStop, and actual deletion of the
  * entity being delayed by 1 tick. This wont work OnPluginEnd or on map change.
  */
 void KillEntityAndParticleEffects(int entity) {
